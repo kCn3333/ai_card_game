@@ -19,6 +19,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QIcon
 
 from .blackjack_view import BlackjackView
+from .war_view import WarView
 from .settings_dialog import SettingsDialog
 from .statistics_dialog import StatisticsDialog
 from .game_settings_dialog import GameSettingsDialog
@@ -36,6 +37,10 @@ class MainWindow(QMainWindow):
         # Player settings (defaults)
         self._player_name = "Player"
         self._player_color = "#2e8b57"
+        
+        # Current game view
+        self._current_game = "blackjack"
+        self._game_view = None
 
         # Set app icon
         icon_path = ICONS_DIR / "spade.svg"
@@ -48,12 +53,8 @@ class MainWindow(QMainWindow):
         # Menu bar
         self._create_menu()
 
-        # Central widget: Blackjack game view
-        self.blackjack_view = BlackjackView(self)
-        # Connect game logger to console and chat sink
-        self.blackjack_view.set_logger(self.log_message)
-        self.blackjack_view.set_chat_sink(self.append_chat)
-        self.setCentralWidget(self.blackjack_view)
+        # Central widget: Game view (default: Blackjack)
+        self._switch_game("blackjack")
 
         # Right panel: console (top) + chat (bottom)
         right_panel = QWidget(self)
@@ -123,13 +124,28 @@ class MainWindow(QMainWindow):
         self.append_chat(self._player_name, message)
         
         # Ask AI to respond about the current game
-        self.blackjack_view.ask_ai_chat(message)
+        if self._game_view:
+            self._game_view.ask_ai_chat(message)
 
     def _create_menu(self) -> None:
         menu_bar = self.menuBar()
 
         # Game menu
         game_menu = menu_bar.addMenu("Game")
+        
+        # Game selection submenu
+        switch_menu = game_menu.addMenu("Switch Game")
+        
+        blackjack_action = QAction("♠ Blackjack", self)
+        blackjack_action.triggered.connect(lambda: self._switch_game("blackjack"))
+        switch_menu.addAction(blackjack_action)
+        
+        war_action = QAction("⚔️ War", self)
+        war_action.triggered.connect(lambda: self._switch_game("war"))
+        switch_menu.addAction(war_action)
+        
+        game_menu.addSeparator()
+        
         new_game_action = QAction("New Game", self)
         new_game_action.triggered.connect(self._on_new_game)
         game_menu.addAction(new_game_action)
@@ -150,8 +166,35 @@ class MainWindow(QMainWindow):
         game_settings_action.triggered.connect(self._open_game_settings)
         settings_menu.addAction(game_settings_action)
 
+    def _switch_game(self, game: str) -> None:
+        """Switch to a different card game."""
+        if self._current_game == game and self._game_view:
+            return
+        
+        self._current_game = game
+        
+        # Create new game view
+        if game == "blackjack":
+            self._game_view = BlackjackView(self)
+            self.setWindowTitle("♠ AI Card Game - Blackjack")
+        elif game == "war":
+            self._game_view = WarView(self)
+            self.setWindowTitle("⚔️ AI Card Game - War")
+        
+        # Connect logger and chat
+        self._game_view.set_logger(self.log_message)
+        self._game_view.set_chat_sink(self.append_chat)
+        
+        # Apply current settings
+        self._game_view.set_player_name(self._player_name)
+        self._game_view.set_player_color(self._player_color)
+        
+        self.setCentralWidget(self._game_view)
+        self.log_message(f"Switched to {game.title()} game.")
+
     def _on_new_game(self) -> None:
-        self.blackjack_view.on_new_game()
+        if self._game_view:
+            self._game_view.on_new_game()
 
     def _open_settings(self) -> None:
         dialog = SettingsDialog(self)
@@ -162,24 +205,29 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def _open_game_settings(self) -> None:
-        current_back = self.blackjack_view.get_card_back()
-        table_color = self.blackjack_view.get_table_color()
-        player_name = self.blackjack_view.get_player_name()
-        player_color = self.blackjack_view.get_player_color()
+        if not self._game_view:
+            return
+        
+        current_back = self._game_view.get_card_back()
+        table_color = self._game_view.get_table_color()
+        player_name = self._game_view.get_player_name()
+        player_color = self._game_view.get_player_color()
         
         dialog = GameSettingsDialog(
             current_back, table_color, player_name, player_color, self
         )
-        dialog.card_back_changed.connect(self.blackjack_view.set_card_back)
-        dialog.table_color_changed.connect(self.blackjack_view.set_table_color)
+        dialog.card_back_changed.connect(self._game_view.set_card_back)
+        dialog.table_color_changed.connect(self._game_view.set_table_color)
         dialog.player_name_changed.connect(self._on_player_name_changed)
         dialog.player_color_changed.connect(self._on_player_color_changed)
         dialog.exec()
 
     def _on_player_name_changed(self, name: str) -> None:
-        self.blackjack_view.set_player_name(name)
+        if self._game_view:
+            self._game_view.set_player_name(name)
         self._player_name = name
 
     def _on_player_color_changed(self, color: str) -> None:
-        self.blackjack_view.set_player_color(color)
+        if self._game_view:
+            self._game_view.set_player_color(color)
         self._player_color = color
