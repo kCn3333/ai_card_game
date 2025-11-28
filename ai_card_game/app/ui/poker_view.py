@@ -134,6 +134,9 @@ class PokerView(QWidget):
         self._chat_sink = sink
         if self._chat_sink:
             self._chat_sink("AI", "Welcome to Texas Hold'em! Let's play! 🃏")
+            # If AI acts first, trigger AI turn
+            if self.controller.state.turn == "ai":
+                self._ai_turn()
 
     def _log(self, message: str) -> None:
         if self._logger:

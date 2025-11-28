@@ -42,20 +42,22 @@ class PokerController:
         
         if self.state.dealer_is_player:
             # Player is dealer/button, posts small blind
-            # AI posts big blind
+            # AI posts big blind - AI has "acted" by posting
             self.state.player_chips -= sb
             self.state.player_bet = sb
             self.state.ai_chips -= bb
             self.state.ai_bet = bb
             self.state.turn = "player"  # Small blind acts first preflop
+            self.state.ai_acted = True  # Big blind counts as acted
         else:
             # AI is dealer, posts small blind
-            # Player posts big blind
+            # Player posts big blind - Player has "acted" by posting
             self.state.ai_chips -= sb
             self.state.ai_bet = sb
             self.state.player_chips -= bb
             self.state.player_bet = bb
-            self.state.turn = "ai"
+            self.state.turn = "ai"  # Small blind acts first
+            self.state.player_acted = True  # Big blind counts as acted
         
         self.state.pot = sb + bb
         self.state.current_bet = bb
