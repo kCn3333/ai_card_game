@@ -1,8 +1,10 @@
 """Texas Hold'em Poker AI agent for trash talk and commentary."""
 
 from __future__ import annotations
+import json
 
 from ..core.poker.state import PokerState
+from ..core.poker.rules import evaluate_hand
 from .client import AIClient
 
 
@@ -12,13 +14,46 @@ class PokerAgent:
     def __init__(self, client: AIClient | None = None) -> None:
         self.client = client or AIClient()
 
+    def _format_cards(self, cards: list) -> str:
+        """Format cards for display."""
+        return ", ".join(f"{c.rank} of {c.suit}" for c in cards)
+
     def get_comment(self, state: PokerState, event: str) -> str:
         """
-        Get AI comment based on game event.
-        event: "game_start", "player_fold", "ai_fold", "player_raise", "ai_raise",
-               "player_call", "ai_call", "flop", "turn", "river", "showdown", "win", "lose"
+        Get AI comment based on game event using LLM.
         """
-        return self._fallback_comment(event, state)
+        system_prompt = (
+            "You are an AGGRESSIVE and COCKY Poker player AI named 'Ace'. "
+            "You love to trash talk and taunt the player. "
+            "You're confident, competitive, and love winning big pots. "
+            "Keep responses SHORT (1 sentence max). Be aggressive and cocky! Use emojis."
+        )
+
+        # Build context
+        context = {
+            "event": event,
+            "phase": state.phase,
+            "pot": state.pot,
+            "your_chips": state.ai_chips,
+            "player_chips": state.player_chips,
+        }
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": (
+                    f"Game event: {event}. Context: {json.dumps(context)}. "
+                    "Give a short trash talk comment about this moment."
+                ),
+            },
+        ]
+
+        try:
+            resp = self.client.chat(messages)
+            return resp.content.strip()
+        except Exception:
+            return self._fallback_comment(event, state)
 
     def _fallback_comment(self, event: str, state: PokerState) -> str:
         """Fallback comments when AI is unavailable."""
@@ -53,5 +88,45 @@ class PokerAgent:
         return "Let's play! 🎴"
 
     def chat_response(self, state: PokerState, player_message: str) -> str:
-        """Respond to player chat about the current game."""
-        return "Less talking, more betting! Show me the money! 💰"
+        """Respond to player chat about the current game using LLM."""
+        system_prompt = (
+            "You are an AGGRESSIVE and COCKY Poker player AI named 'Ace'. "
+            "You love to trash talk and taunt the player. "
+            "You're confident, competitive, and love winning. "
+            "IMPORTANT: Only talk about the current Poker game. Do not discuss anything else. "
+            "If they ask about something unrelated, redirect to the game with trash talk. "
+            "Keep responses short (1-2 sentences max). Be aggressive and cocky!"
+        )
+
+        # Evaluate hands if we have community cards
+        player_hand_name = "unknown"
+        if state.community_cards:
+            _, _, player_hand_name = evaluate_hand(state.player_hand, state.community_cards)
+
+        context = {
+            "phase": state.phase,
+            "pot": state.pot,
+            "your_chips": state.ai_chips,
+            "player_chips": state.player_chips,
+            "community_cards": self._format_cards(state.community_cards) if state.community_cards else "none yet",
+            "game_finished": state.finished,
+            "winner": state.winner if state.finished else None,
+        }
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": (
+                    f"Game state: {json.dumps(context)}. "
+                    f"Player says: \"{player_message}\". "
+                    "Respond in character (short, aggressive, about the game only)."
+                ),
+            },
+        ]
+
+        try:
+            resp = self.client.chat(messages)
+            return resp.content.strip()
+        except Exception:
+            return "Less talking, more betting! Show me the money! 💰"

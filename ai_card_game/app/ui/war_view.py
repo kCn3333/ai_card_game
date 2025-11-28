@@ -346,16 +346,15 @@ class WarView(QWidget):
         self._get_ai_comment("game_start")
 
     def _get_ai_comment(self, event: str) -> None:
-        """Get AI comment - use fallback for reliability."""
-        # Use fallback comments directly for now
-        comment = self.agent._fallback_comment(event, self.controller.state)
+        """Get AI comment using LLM."""
+        comment = self.agent.get_comment(self.controller.state, event)
         if comment:
             self._chat("AI", comment)
 
     def ask_ai_chat(self, message: str) -> None:
-        """Handle player chat message."""
-        # Use simple fallback response for now
-        self._chat("AI", "Less talking, more losing! 😏")
+        """Handle player chat message using LLM."""
+        response = self.agent.chat_response(self.controller.state, message)
+        self._chat("AI", response)
 
     # --- Settings ---
     

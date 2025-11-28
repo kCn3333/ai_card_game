@@ -157,7 +157,7 @@ class PokerView(QWidget):
 
         # AI info row
         ai_info = QHBoxLayout()
-        self.ai_label = QLabel("DEALER", self)
+        self.ai_label = QLabel("ACE", self)
         self.ai_label.setStyleSheet(LABEL_STYLE)
         self.ai_label.setAttribute(Qt.WA_TranslucentBackground)
         self.ai_chips_label = QLabel("$1000", self)
@@ -384,13 +384,13 @@ class PokerView(QWidget):
         result = self.controller.player_action(action, amount)
         self._log(result)
         
-        # AI comment
+        # AI comment using LLM
         if action == "fold":
-            self._chat("AI", self.agent._fallback_comment("player_fold", self.controller.state))
+            self._chat("AI", self.agent.get_comment(self.controller.state, "player_fold"))
         elif action == "raise" or action == "all_in":
-            self._chat("AI", self.agent._fallback_comment("player_raise", self.controller.state))
+            self._chat("AI", self.agent.get_comment(self.controller.state, "player_raise"))
         elif action == "call":
-            self._chat("AI", self.agent._fallback_comment("player_call", self.controller.state))
+            self._chat("AI", self.agent.get_comment(self.controller.state, "player_call"))
         
         self._refresh()
         
@@ -405,39 +405,44 @@ class PokerView(QWidget):
             if message:
                 self._log(message)
                 if action == "fold":
-                    self._chat("AI", self.agent._fallback_comment("ai_fold", self.controller.state))
+                    self._chat("AI", self.agent.get_comment(self.controller.state, "ai_fold"))
                 elif action == "raise":
-                    self._chat("AI", self.agent._fallback_comment("ai_raise", self.controller.state))
+                    self._chat("AI", self.agent.get_comment(self.controller.state, "ai_raise"))
                 elif action == "call":
-                    self._chat("AI", self.agent._fallback_comment("ai_call", self.controller.state))
+                    self._chat("AI", self.agent.get_comment(self.controller.state, "ai_call"))
                 elif action == "check":
-                    self._chat("AI", self.agent._fallback_comment("check", self.controller.state))
+                    self._chat("AI", self.agent.get_comment(self.controller.state, "check"))
             
             self._refresh()
             
             # Comment on new phase
             if self.controller.state.phase == "flop" and len(self.controller.state.community_cards) == 3:
-                self._chat("AI", self.agent._fallback_comment("flop", self.controller.state))
+                self._chat("AI", self.agent.get_comment(self.controller.state, "flop"))
             elif self.controller.state.phase == "turn" and len(self.controller.state.community_cards) == 4:
-                self._chat("AI", self.agent._fallback_comment("turn", self.controller.state))
+                self._chat("AI", self.agent.get_comment(self.controller.state, "turn"))
             elif self.controller.state.phase == "river" and len(self.controller.state.community_cards) == 5:
-                self._chat("AI", self.agent._fallback_comment("river", self.controller.state))
+                self._chat("AI", self.agent.get_comment(self.controller.state, "river"))
         
         # Check for game end
         if self.controller.state.finished:
             if self.controller.state.winner == "player":
-                self._chat("AI", self.agent._fallback_comment("lose", self.controller.state))
+                self._chat("AI", self.agent.get_comment(self.controller.state, "lose"))
                 save_game_result("poker", "win", self.controller.state.player_chips, self.controller.state.ai_chips)
             elif self.controller.state.winner == "ai":
-                self._chat("AI", self.agent._fallback_comment("win", self.controller.state))
+                self._chat("AI", self.agent.get_comment(self.controller.state, "win"))
                 save_game_result("poker", "loss", self.controller.state.player_chips, self.controller.state.ai_chips)
             self._refresh()
 
     def on_new_game(self) -> None:
         """Start a new hand."""
+        # Reset chips if either player is broke
+        if self.controller.state.player_chips <= 0 or self.controller.state.ai_chips <= 0:
+            self.controller.reset_chips()
+            self._log("Chips reset to $1000 each.")
+        
         self.controller.new_game()
         self._log("New hand dealt.")
-        self._chat("AI", self.agent._fallback_comment("game_start", self.controller.state))
+        self._chat("AI", self.agent.get_comment(self.controller.state, "game_start"))
         self._refresh()
         
         # If AI acts first
