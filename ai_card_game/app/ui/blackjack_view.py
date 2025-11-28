@@ -133,6 +133,9 @@ class BlackjackView(QWidget):
         self._chat_thread: Optional[QThread] = None
         self._chat_worker: Optional[ChatWorker] = None
         self._card_back: str = "back.svg"
+        self._table_color: str = "#0d5c2e"  # Dark green felt
+        self._player_name: str = "Player"
+        self._player_color: str = "#2e8b57"  # Sea green
 
         self._init_ui()
         self._refresh()
@@ -161,12 +164,7 @@ class BlackjackView(QWidget):
         layout.setSpacing(20)
 
         # Casino felt table background
-        self.setStyleSheet("""
-            BlackjackView {
-                background: qradialgradient(cx:0.5, cy:0.5, radius:1,
-                    stop:0 #1a5c1a, stop:0.7 #0d3d0d, stop:1 #082808);
-            }
-        """)
+        self._update_table_style()
 
         # === DEALER AREA (top) ===
         dealer_section = QVBoxLayout()
@@ -205,9 +203,9 @@ class BlackjackView(QWidget):
         self.player_cards_row.setSpacing(-30)  # Negative spacing for overlap
         self.player_cards_row.setAlignment(Qt.AlignCenter)
 
-        self.player_label = QLabel("YOUR HAND", self)
-        self.player_label.setStyleSheet(LABEL_STYLE)
+        self.player_label = QLabel(self._player_name.upper(), self)
         self.player_label.setAlignment(Qt.AlignCenter)
+        self._update_player_label()
 
         player_section.addWidget(self.player_cards_container)
         player_section.addWidget(self.player_label)
@@ -438,3 +436,65 @@ class BlackjackView(QWidget):
         """Set the card back design and refresh display."""
         self._card_back = filename
         self._refresh()
+
+    # --- Table color settings ---
+
+    def get_table_color(self) -> str:
+        """Return current table color."""
+        return self._table_color
+
+    def set_table_color(self, color: str) -> None:
+        """Set the table background color."""
+        self._table_color = color
+        self._update_table_style()
+
+    def _update_table_style(self) -> None:
+        """Update the table background with current color."""
+        # Create lighter and darker shades for gradient
+        from PySide6.QtGui import QColor
+        base = QColor(self._table_color)
+        h, s, l, a = base.getHslF()
+        
+        # Create gradient colors
+        light = QColor.fromHslF(h, s, min(l + 0.1, 1.0), a).name()
+        dark = QColor.fromHslF(h, s, max(l - 0.1, 0.0), a).name()
+        darker = QColor.fromHslF(h, s, max(l - 0.2, 0.0), a).name()
+        
+        self.setStyleSheet(f"""
+            BlackjackView {{
+                background: qradialgradient(cx:0.5, cy:0.5, radius:1,
+                    stop:0 {light}, stop:0.7 {dark}, stop:1 {darker});
+            }}
+        """)
+
+    # --- Player name and color settings ---
+
+    def get_player_name(self) -> str:
+        """Return current player name."""
+        return self._player_name
+
+    def set_player_name(self, name: str) -> None:
+        """Set the player name and update display."""
+        self._player_name = name
+        self._update_player_label()
+
+    def get_player_color(self) -> str:
+        """Return current player name color."""
+        return self._player_color
+
+    def set_player_color(self, color: str) -> None:
+        """Set the player name color and update display."""
+        self._player_color = color
+        self._update_player_label()
+
+    def _update_player_label(self) -> None:
+        """Update the player label with current name and color."""
+        self.player_label.setText(self._player_name.upper())
+        self.player_label.setStyleSheet(f"""
+            QLabel {{
+                color: {self._player_color};
+                font-size: 18px;
+                font-weight: bold;
+                padding: 8px;
+            }}
+        """)

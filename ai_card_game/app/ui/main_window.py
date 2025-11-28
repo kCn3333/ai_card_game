@@ -33,6 +33,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("♠ AI Card Game")
         self.resize(1200, 800)
 
+        # Player settings (defaults)
+        self._player_name = "Player"
+        self._player_color = "#2e8b57"
+
         # Set app icon
         icon_path = ICONS_DIR / "spade.svg"
         if icon_path.exists():
@@ -97,14 +101,16 @@ class MainWindow(QMainWindow):
 
     def append_chat(self, sender: str, message: str) -> None:
         timestamp = datetime.now().strftime("%H:%M:%S")
-        # Color names: Player=green, AI=red
-        if sender.lower() == "player" or sender.lower() == "you":
-            name_color = "#2e8b57"  # Green
+        # Color names: Player uses custom color, AI=red
+        if sender.lower() == "player" or sender == self._player_name:
+            name_color = self._player_color
+            display_name = self._player_name
         else:
-            name_color = "#dc3545"  # Red
+            name_color = "#dc3545"  # Red for AI
+            display_name = sender
         self.chat.append(
             f"<span style='color:#888'>[{timestamp}]</span> "
-            f"<b style='color:{name_color}'>{sender}:</b> {message}"
+            f"<b style='color:{name_color}'>{display_name}:</b> {message}"
         )
 
     def _send_chat_message(self) -> None:
@@ -114,7 +120,7 @@ class MainWindow(QMainWindow):
             return
         
         self.chat_input.clear()
-        self.append_chat("Player", message)
+        self.append_chat(self._player_name, message)
         
         # Ask AI to respond about the current game
         self.blackjack_view.ask_ai_chat(message)
@@ -157,6 +163,23 @@ class MainWindow(QMainWindow):
 
     def _open_game_settings(self) -> None:
         current_back = self.blackjack_view.get_card_back()
-        dialog = GameSettingsDialog(current_back, self)
+        table_color = self.blackjack_view.get_table_color()
+        player_name = self.blackjack_view.get_player_name()
+        player_color = self.blackjack_view.get_player_color()
+        
+        dialog = GameSettingsDialog(
+            current_back, table_color, player_name, player_color, self
+        )
         dialog.card_back_changed.connect(self.blackjack_view.set_card_back)
+        dialog.table_color_changed.connect(self.blackjack_view.set_table_color)
+        dialog.player_name_changed.connect(self._on_player_name_changed)
+        dialog.player_color_changed.connect(self._on_player_color_changed)
         dialog.exec()
+
+    def _on_player_name_changed(self, name: str) -> None:
+        self.blackjack_view.set_player_name(name)
+        self._player_name = name
+
+    def _on_player_color_changed(self, color: str) -> None:
+        self.blackjack_view.set_player_color(color)
+        self._player_color = color
