@@ -53,10 +53,7 @@ class MainWindow(QMainWindow):
         # Menu bar
         self._create_menu()
 
-        # Central widget: Game view (default: Blackjack)
-        self._switch_game("blackjack")
-
-        # Right panel: console (top) + chat (bottom)
+        # Right panel: console (top) + chat (bottom) - must be created BEFORE game view
         right_panel = QWidget(self)
         right_layout = QVBoxLayout(right_panel)
 
@@ -92,9 +89,11 @@ class MainWindow(QMainWindow):
         dock.setAllowedAreas(Qt.RightDockWidgetArea)
         self.addDockWidget(Qt.RightDockWidgetArea, dock)
 
+        # Central widget: Game view (default: Blackjack) - after console is ready
+        self._switch_game("blackjack")
+
         # Simple initial log message
         self.log_message("Application started.")
-        self.log_message("Blackjack view ready. Click 'New Game' or play current hand.")
 
     def log_message(self, message: str) -> None:
         timestamp = datetime.now().strftime("%H:%M:%S")

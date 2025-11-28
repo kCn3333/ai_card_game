@@ -16,10 +16,13 @@ class WarController:
     def new_game(self) -> None:
         """Start a new game by shuffling and dealing cards."""
         deck = Deck()
-        deck.shuffle()
         
-        # Deal all cards evenly
-        all_cards = deck.cards
+        # Draw all cards from deck
+        all_cards = []
+        while len(deck) > 0:
+            all_cards.append(deck.draw())
+        
+        random.shuffle(all_cards)
         half = len(all_cards) // 2
         
         self.state = WarState(

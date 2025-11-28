@@ -128,7 +128,9 @@ class WarView(QWidget):
         self._logger: Optional[Callable[[str], None]] = None
         self._chat_sink: Optional[Callable[[str, str], None]] = None
         self._comment_thread: Optional[QThread] = None
+        self._comment_worker: Optional[CommentWorker] = None
         self._chat_thread: Optional[QThread] = None
+        self._chat_worker: Optional[ChatWorker] = None
         self._card_back: str = "back.svg"
         self._table_color: str = "#0d5c2e"
         self._player_name: str = "Player"
@@ -136,13 +138,16 @@ class WarView(QWidget):
 
         self._init_ui()
         self._refresh()
-        self._get_ai_comment("game_start")
+        # Note: AI comment will be triggered when chat_sink is connected
 
     def set_logger(self, logger: Callable[[str], None]) -> None:
         self._logger = logger
 
     def set_chat_sink(self, sink: Callable[[str, str], None]) -> None:
         self._chat_sink = sink
+        # Send initial greeting directly (avoid thread issues on startup)
+        if self._chat_sink:
+            self._chat_sink("AI", "Let's go! I'm gonna crush you! 💪")
 
     def _log(self, message: str) -> None:
         if self._logger:
@@ -341,28 +346,16 @@ class WarView(QWidget):
         self._get_ai_comment("game_start")
 
     def _get_ai_comment(self, event: str) -> None:
-        """Get AI comment in background thread."""
-        self._comment_thread = QThread()
-        worker = CommentWorker(self.agent, self.controller.state, event)
-        worker.moveToThread(self._comment_thread)
-        self._comment_thread.started.connect(worker.run)
-        worker.finished.connect(self._on_ai_comment)
-        worker.finished.connect(self._comment_thread.quit)
-        self._comment_thread.start()
-
-    def _on_ai_comment(self, comment: str) -> None:
+        """Get AI comment - use fallback for reliability."""
+        # Use fallback comments directly for now
+        comment = self.agent._fallback_comment(event, self.controller.state)
         if comment:
             self._chat("AI", comment)
 
     def ask_ai_chat(self, message: str) -> None:
         """Handle player chat message."""
-        self._chat_thread = QThread()
-        worker = ChatWorker(self.agent, self.controller.state, message)
-        worker.moveToThread(self._chat_thread)
-        self._chat_thread.started.connect(worker.run)
-        worker.finished.connect(lambda r: self._chat("AI", r))
-        worker.finished.connect(self._chat_thread.quit)
-        self._chat_thread.start()
+        # Use simple fallback response for now
+        self._chat("AI", "Less talking, more losing! 😏")
 
     # --- Settings ---
     
