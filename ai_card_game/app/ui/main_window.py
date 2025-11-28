@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
+from .blackjack_view import BlackjackView
 
 class MainWindow(QMainWindow):
     """Main window: game area + right panel (console + chat)."""
@@ -22,11 +23,9 @@ class MainWindow(QMainWindow):
         self._init_ui()
 
     def _init_ui(self) -> None:
-        # Central widget: for now just placeholder label (Blackjack table later)
-        central = QWidget(self)
-        central_layout = QVBoxLayout(central)
-        central_layout.addWidget(QLabel("Game table will be here (Blackjack view)", self))
-        self.setCentralWidget(central)
+        # Central widget: Blackjack game view
+        self.blackjack_view = BlackjackView(self)
+        self.setCentralWidget(self.blackjack_view)
 
         # Right panel: console (top) + chat (bottom)
         right_panel = QWidget(self)

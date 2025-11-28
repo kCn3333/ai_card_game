@@ -20,8 +20,16 @@ class Card:
 
     @property
     def svg_filename(self) -> str:
-        """Filename we expect in assets/cards, e.g. 'hearts_A.svg'."""
-        return f"{self.suit}_{self.rank}.svg"
+        """Filename we expect in assets/cards.
+
+        For numbered cards this is '<suit>_<rank>.svg', e.g. 'clubs_2.svg'.
+        For A and face cards we map to full names: A -> ace, J -> jack,
+        Q -> queen, K -> king, e.g. 'spades_ace.svg', 'diamonds_king.svg',
+        'hearts_queen.svg'.
+        """
+        face_map = {"A": "ace", "J": "jack", "Q": "queen", "K": "king"}
+        rank_part = face_map.get(self.rank, self.rank)
+        return f"{self.suit}_{rank_part}.svg"
 
 
 class Deck:
