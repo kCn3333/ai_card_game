@@ -22,8 +22,9 @@ class PokerAgent:
         """
         Get AI comment based on game event using LLM.
         """
+        model_name = self.client.get_model_name()
         system_prompt = (
-            "You are an AGGRESSIVE and COCKY Poker player AI named 'Ace'. "
+            f"You are an AGGRESSIVE and COCKY Poker player AI named '{model_name}'. "
             "You love to trash talk and taunt the player. "
             "You're confident, competitive, and love winning big pots. "
             "Keep responses SHORT (1 sentence max). Be aggressive and cocky! Use emojis."
@@ -62,8 +63,9 @@ class PokerAgent:
         if state.community_cards:
             _, _, ai_hand_name = evaluate_hand(state.ai_hand, state.community_cards)
 
+        model_name = self.client.get_model_name()
         system_prompt = (
-            "You are an expert Poker player AI named 'Ace'. You must decide your action. "
+            f"You are an expert Poker player AI named '{model_name}'. You must decide your action. "
             "Analyze your hand strength, the pot odds, and make a strategic decision. "
             "You can bluff sometimes but play smart. Be aggressive when you have good cards. "
             'Respond ONLY as JSON: {"action": "fold" or "check" or "call" or "raise", '
@@ -128,8 +130,9 @@ class PokerAgent:
 
     def chat_response(self, state: PokerState, player_message: str) -> str:
         """Respond to player chat about the current game using LLM."""
+        model_name = self.client.get_model_name()
         system_prompt = (
-            "You are an AGGRESSIVE and COCKY Poker player AI named 'Ace'. "
+            f"You are an AGGRESSIVE and COCKY Poker player AI named '{model_name}'. "
             "You love to trash talk and taunt the player. "
             "You're confident, competitive, and love winning. "
             "IMPORTANT: Only talk about the current Poker game. Do not discuss anything else. "

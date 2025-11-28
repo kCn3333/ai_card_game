@@ -19,8 +19,9 @@ class WarAgent:
         Get AI comment based on game event.
         event: "player_wins", "ai_wins", "war", "game_start", "game_over"
         """
+        model_name = self.client.get_model_name()
         system_prompt = (
-            "You are an AGGRESSIVE and COCKY card game AI playing War. "
+            f"You are an AGGRESSIVE and COCKY card game AI named '{model_name}' playing War. "
             "You love to trash talk and taunt the player. "
             "You're confident, competitive, and love winning. "
             "Comment on what just happened in the game with attitude! "
@@ -59,8 +60,9 @@ class WarAgent:
 
     def chat_response(self, state: WarState, player_message: str) -> str:
         """Respond to player chat about the current game."""
+        model_name = self.client.get_model_name()
         system_prompt = (
-            "You are an AGGRESSIVE and COCKY card game AI playing War. "
+            f"You are an AGGRESSIVE and COCKY card game AI named '{model_name}' playing War. "
             "You love to trash talk. The player is chatting with you. "
             "ONLY talk about the War card game. Keep responses short (1-2 sentences). "
             "Be aggressive and cocky!"

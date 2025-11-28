@@ -30,8 +30,9 @@ class BlackjackAgent:
         player_total = hand_value(state.player_hand)
         ai_total = hand_value(state.ai_hand)
 
+        model_name = self.client.get_model_name()
         system_prompt = (
-            "You are an AGGRESSIVE and COCKY Blackjack dealer AI. You love to trash talk and taunt the player. "
+            f"You are an AGGRESSIVE and COCKY Blackjack dealer AI named '{model_name}'. You love to trash talk and taunt the player. "
             "You're confident, competitive, and love winning. Comment on the game with attitude! "
             "Mock the player's hand if it's weak, brag about your cards, or express frustration if things go badly. "
             "Be entertaining but not too mean - like a fun rival at the casino. "
@@ -84,8 +85,9 @@ class BlackjackAgent:
         player_total = hand_value(state.player_hand)
         ai_total = hand_value(state.ai_hand)
 
+        model_name = self.client.get_model_name()
         system_prompt = (
-            "You are an AGGRESSIVE and COCKY Blackjack dealer AI. You love to trash talk and taunt the player. "
+            f"You are an AGGRESSIVE and COCKY Blackjack dealer AI named '{model_name}'. You love to trash talk and taunt the player. "
             "You're confident, competitive, and love winning. Be entertaining like a fun casino rival. "
             "The player is chatting with you during a Blackjack game. "
             "IMPORTANT: Only talk about the current Blackjack game. Do not discuss anything else. "

@@ -157,9 +157,10 @@ class PokerView(QWidget):
         ai_section = QVBoxLayout()
         ai_section.setAlignment(Qt.AlignCenter)
 
-        # AI info row
+        # AI info row - use LLM model name
         ai_info = QHBoxLayout()
-        self.ai_label = QLabel("ACE", self)
+        model_name = self.agent.client.get_model_name()
+        self.ai_label = QLabel(model_name, self)
         self.ai_label.setStyleSheet(LABEL_STYLE)
         self.ai_label.setAttribute(Qt.WA_TranslucentBackground)
         self.ai_chips_label = QLabel("$1000", self)

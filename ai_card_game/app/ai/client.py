@@ -20,6 +20,12 @@ class AIClient:
         self.host = host or settings.DEFAULT_AI_HOST
         self.model = model or settings.DEFAULT_AI_MODEL
 
+    def get_model_name(self) -> str:
+        """Get a display-friendly model name."""
+        # Extract just the model name without version/size tags
+        name = self.model.split(":")[0] if ":" in self.model else self.model
+        return name.upper()
+
     def chat(self, messages: List[Dict[str, str]]) -> AIResponse:
         """Send a chat-style request and return full text response.
 

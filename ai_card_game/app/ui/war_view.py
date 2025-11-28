@@ -167,7 +167,9 @@ class WarView(QWidget):
         ai_section = QVBoxLayout()
         ai_section.setAlignment(Qt.AlignCenter)
 
-        self.ai_label = QLabel("DEALER", self)
+        # Use LLM model name
+        model_name = self.agent.client.get_model_name()
+        self.ai_label = QLabel(model_name, self)
         self.ai_label.setStyleSheet(LABEL_STYLE)
         self.ai_label.setAlignment(Qt.AlignCenter)
         self.ai_label.setAttribute(Qt.WA_TranslucentBackground)

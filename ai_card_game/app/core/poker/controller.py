@@ -146,7 +146,7 @@ class PokerController:
         if action == "fold":
             self.state.ai_folded = True
             self._finish_hand("player")
-            return ("fold", "Ace folds")
+            return ("fold", "AI folds")
         
         elif action == "check":
             if call_amount > 0:
@@ -155,7 +155,7 @@ class PokerController:
             else:
                 self.state.ai_acted = True
                 self._next_turn()
-                return ("check", "Ace checks")
+                return ("check", "AI checks")
         
         if action == "call":
             call_amount = min(call_amount, self.state.ai_chips)
@@ -165,7 +165,7 @@ class PokerController:
                 self.state.pot += call_amount
             self.state.ai_acted = True
             self._next_turn()
-            return ("call", f"Ace calls ${call_amount}")
+            return ("call", f"AI calls ${call_amount}")
         
         elif action == "raise":
             # Calculate total amount needed
@@ -176,7 +176,7 @@ class PokerController:
                 # Can't raise, just check/call
                 self.state.ai_acted = True
                 self._next_turn()
-                return ("check", "Ace checks")
+                return ("check", "AI checks")
             
             self.state.ai_chips -= total
             self.state.ai_bet += total
@@ -185,7 +185,7 @@ class PokerController:
             self.state.ai_acted = True
             self.state.player_acted = False  # Player must respond
             self._next_turn()
-            return ("raise", f"Ace raises to ${self.state.current_bet}")
+            return ("raise", f"AI raises to ${self.state.current_bet}")
         
         return ("none", "")
     
