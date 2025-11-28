@@ -315,16 +315,16 @@ class WarView(QWidget):
                 self.status_label.setText("🎉 YOU WIN THE WAR!")
                 save_game_result("war", "win", state.player_card_count, state.ai_card_count)
             else:
-                self.status_label.setText("💔 DEALER WINS THE WAR!")
+                self.status_label.setText("💔 AI WINS THE WAR!")
                 save_game_result("war", "loss", state.player_card_count, state.ai_card_count)
         elif state.in_war:
             self.status_label.setText(f"⚔️ WAR! {len(state.war_pot)} cards at stake!")
         elif state.last_result == "player_wins":
             self.status_label.setText(f"You win this battle! ({state.player_card_count} vs {state.ai_card_count})")
         elif state.last_result == "ai_wins":
-            self.status_label.setText(f"Dealer wins this battle! ({state.player_card_count} vs {state.ai_card_count})")
+            self.status_label.setText(f"AI wins this battle! ({state.player_card_count} vs {state.ai_card_count})")
         else:
-            self.status_label.setText(f"Cards: You {state.player_card_count} - Dealer {state.ai_card_count}")
+            self.status_label.setText(f"Cards: You {state.player_card_count} - AI {state.ai_card_count}")
 
     def _clear_layout(self, layout) -> None:
         while layout.count():
