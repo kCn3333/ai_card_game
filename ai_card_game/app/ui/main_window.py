@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (
     QLabel,
     QMenuBar,
     QMenu,
+    QLineEdit,
+    QPushButton,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QIcon
@@ -57,14 +59,26 @@ class MainWindow(QMainWindow):
         self.console.setReadOnly(True)
         self.console.setPlaceholderText("System messages and game log...")
 
-        # Chat area
+        # Chat display area (read-only)
         self.chat = QTextEdit(self)
+        self.chat.setReadOnly(True)
         self.chat.setPlaceholderText("Chat with AI will appear here...")
+
+        # Chat input area
+        chat_input_layout = QHBoxLayout()
+        self.chat_input = QLineEdit(self)
+        self.chat_input.setPlaceholderText("Type a message to AI...")
+        self.chat_input.returnPressed.connect(self._send_chat_message)
+        self.send_btn = QPushButton("Send", self)
+        self.send_btn.clicked.connect(self._send_chat_message)
+        chat_input_layout.addWidget(self.chat_input)
+        chat_input_layout.addWidget(self.send_btn)
 
         right_layout.addWidget(QLabel("Console", self))
         right_layout.addWidget(self.console, stretch=2)
         right_layout.addWidget(QLabel("Chat", self))
         right_layout.addWidget(self.chat, stretch=3)
+        right_layout.addLayout(chat_input_layout)
 
         # Put right panel into a dock widget so it can be resized
         dock = QDockWidget("Info", self)
@@ -82,7 +96,27 @@ class MainWindow(QMainWindow):
 
     def append_chat(self, sender: str, message: str) -> None:
         timestamp = datetime.now().strftime("%H:%M:%S")
-        self.chat.append(f"<span style='color:#888'>[{timestamp}]</span> <b>{sender}:</b> {message}")
+        # Color names: Player=green, AI=red
+        if sender.lower() == "player" or sender.lower() == "you":
+            name_color = "#2e8b57"  # Green
+        else:
+            name_color = "#dc3545"  # Red
+        self.chat.append(
+            f"<span style='color:#888'>[{timestamp}]</span> "
+            f"<b style='color:{name_color}'>{sender}:</b> {message}"
+        )
+
+    def _send_chat_message(self) -> None:
+        """Send player message to AI and get response about the game."""
+        message = self.chat_input.text().strip()
+        if not message:
+            return
+        
+        self.chat_input.clear()
+        self.append_chat("Player", message)
+        
+        # Ask AI to respond about the current game
+        self.blackjack_view.ask_ai_chat(message)
 
     def _create_menu(self) -> None:
         menu_bar = self.menuBar()

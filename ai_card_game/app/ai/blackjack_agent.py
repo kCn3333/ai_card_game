@@ -89,3 +89,44 @@ class BlackjackAgent:
         if ai_total < 17:
             return AIDecision(action="hit", comment="Watch and learn, rookie! I'm going for it! 🎰")
         return AIDecision(action="stand", comment="That's all I need to crush you! 😎")
+
+    def chat_response(self, state: BlackjackState, player_message: str) -> str:
+        """Respond to player chat about the current game. Stay in character."""
+        player_total = hand_value(state.player_hand)
+        ai_total = hand_value(state.ai_hand)
+
+        system_prompt = (
+            "You are an AGGRESSIVE and COCKY Blackjack dealer AI. You love to trash talk and taunt the player. "
+            "You're confident, competitive, and love winning. Be entertaining like a fun casino rival. "
+            "The player is chatting with you during a Blackjack game. "
+            "IMPORTANT: Only talk about the current Blackjack game. Do not discuss anything else. "
+            "If they ask about something unrelated, redirect to the game with trash talk. "
+            "Keep responses short (1-2 sentences max). Be aggressive and cocky!"
+        )
+
+        game_context = {
+            "your_total": ai_total,
+            "your_cards": self._format_hand(state.ai_hand.cards),
+            "player_total": player_total,
+            "player_cards": self._format_hand(state.player_hand.cards),
+            "game_finished": state.finished,
+            "winner": state.winner if state.finished else None,
+        }
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": (
+                    f"Game state: {json.dumps(game_context)}. "
+                    f"Player says: \"{player_message}\". "
+                    "Respond in character (short, aggressive, about the game only)."
+                ),
+            },
+        ]
+
+        try:
+            resp = self.client.chat(messages)
+            return resp.content.strip()
+        except Exception:
+            return "Ha! Can't even chat properly? Focus on the game, loser! 😏"

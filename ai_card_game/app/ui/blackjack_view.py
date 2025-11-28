@@ -100,6 +100,25 @@ class AIWorker(QObject):
             self.error.emit(str(e))
 
 
+class ChatWorker(QObject):
+    """Worker that runs AI chat response in a background thread."""
+    finished = Signal(str)  # emits response string
+    error = Signal(str)
+
+    def __init__(self, agent: BlackjackAgent, state, message: str) -> None:
+        super().__init__()
+        self.agent = agent
+        self.state = state
+        self.message = message
+
+    def run(self) -> None:
+        try:
+            response = self.agent.chat_response(self.state, self.message)
+            self.finished.emit(response)
+        except Exception as e:
+            self.error.emit(str(e))
+
+
 class BlackjackView(QWidget):
     """Very simple visual for player/AI hands and basic controls."""
 
@@ -111,6 +130,8 @@ class BlackjackView(QWidget):
         self._chat_sink: Optional[Callable[[str, str], None]] = None
         self._ai_thread: Optional[QThread] = None
         self._ai_worker: Optional[AIWorker] = None
+        self._chat_thread: Optional[QThread] = None
+        self._chat_worker: Optional[ChatWorker] = None
 
         self._init_ui()
         self._refresh()
@@ -381,3 +402,27 @@ class BlackjackView(QWidget):
         self.stand_btn.setEnabled(True)
         self._log("New game started.")
         self._refresh()
+
+    # --- Chat with AI ---
+
+    def ask_ai_chat(self, message: str) -> None:
+        """Ask AI to respond to a player chat message."""
+        self._chat_thread = QThread()
+        self._chat_worker = ChatWorker(self.agent, self.controller.state, message)
+        self._chat_worker.moveToThread(self._chat_thread)
+
+        self._chat_thread.started.connect(self._chat_worker.run)
+        self._chat_worker.finished.connect(self._on_chat_response)
+        self._chat_worker.error.connect(self._on_chat_error)
+        self._chat_worker.finished.connect(self._chat_thread.quit)
+        self._chat_worker.error.connect(self._chat_thread.quit)
+
+        self._chat_thread.start()
+
+    def _on_chat_response(self, response: str) -> None:
+        """Handle AI chat response."""
+        self._chat("AI", response)
+
+    def _on_chat_error(self, error_msg: str) -> None:
+        """Handle AI chat error."""
+        self._chat("AI", "Ha! Can't even chat properly? Focus on the game! 😏")
