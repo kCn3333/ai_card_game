@@ -20,6 +20,7 @@ from PySide6.QtGui import QAction, QIcon
 
 from .blackjack_view import BlackjackView
 from .war_view import WarView
+from .poker_view import PokerView
 from .settings_dialog import SettingsDialog
 from .statistics_dialog import StatisticsDialog
 from .game_settings_dialog import GameSettingsDialog
@@ -143,6 +144,10 @@ class MainWindow(QMainWindow):
         war_action.triggered.connect(lambda: self._switch_game("war"))
         switch_menu.addAction(war_action)
         
+        poker_action = QAction("🎰 Poker", self)
+        poker_action.triggered.connect(lambda: self._switch_game("poker"))
+        switch_menu.addAction(poker_action)
+        
         game_menu.addSeparator()
         
         new_game_action = QAction("New Game", self)
@@ -179,6 +184,9 @@ class MainWindow(QMainWindow):
         elif game == "war":
             self._game_view = WarView(self)
             self.setWindowTitle("⚔️ AI Card Game - War")
+        elif game == "poker":
+            self._game_view = PokerView(self)
+            self.setWindowTitle("🎰 AI Card Game - Poker")
         
         # Connect logger and chat
         self._game_view.set_logger(self.log_message)
