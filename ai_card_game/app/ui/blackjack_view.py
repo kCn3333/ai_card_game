@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Callable, Optional
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QSizePolicy
 from PySide6.QtSvgWidgets import QSvgWidget
@@ -34,9 +35,20 @@ class BlackjackView(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.controller = BlackjackController()
+        self._logger: Optional[Callable[[str], None]] = None
 
         self._init_ui()
         self._refresh()
+
+    # --- Logging ---
+
+    def set_logger(self, logger: Callable[[str], None]) -> None:
+        """Set a function used to log messages (e.g. to main window console)."""
+        self._logger = logger
+
+    def _log(self, message: str) -> None:
+        if self._logger is not None:
+            self._logger(message)
 
     def _init_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -122,6 +134,7 @@ class BlackjackView(QWidget):
             self.hit_btn.setEnabled(False)
             self.stand_btn.setEnabled(False)
             self.status_label.setText(f"Finished. Winner: {state.winner} (P={p_val}, AI={a_val})")
+            self._log(f"Game finished. Winner: {state.winner} (Player={p_val}, AI={a_val})")
         else:
             self.status_label.setText(f"Player total: {p_val} | AI total: {a_val}")
 
@@ -160,10 +173,12 @@ class BlackjackView(QWidget):
 
     def on_hit(self) -> None:
         self.controller.player_hit()
+        self._log("Player hits.")
         self._refresh()
 
     def on_stand(self) -> None:
         self.controller.player_stand()
+        self._log("Player stands. Dealer plays out.")
         # Dealer/AI plays out according to rules
         self.controller.ai_play_out()
         self._refresh()
@@ -172,4 +187,5 @@ class BlackjackView(QWidget):
         self.controller.new_game()
         self.hit_btn.setEnabled(True)
         self.stand_btn.setEnabled(True)
+        self._log("New game started.")
         self._refresh()

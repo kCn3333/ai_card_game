@@ -1,0 +1,2 @@
+DEFAULT_AI_HOST = "http://127.0.0.1:11434"
+DEFAULT_AI_MODEL = "gemma3:4b"

@@ -25,6 +25,8 @@ class MainWindow(QMainWindow):
     def _init_ui(self) -> None:
         # Central widget: Blackjack game view
         self.blackjack_view = BlackjackView(self)
+        # Connect game logger to console
+        self.blackjack_view.set_logger(self.log_message)
         self.setCentralWidget(self.blackjack_view)
 
         # Right panel: console (top) + chat (bottom)
@@ -53,6 +55,7 @@ class MainWindow(QMainWindow):
 
         # Simple initial log message
         self.log_message("Application started.")
+        self.log_message("Blackjack view ready. Click 'New Game' or play current hand.")
 
     def log_message(self, message: str) -> None:
         self.console.append(message)
