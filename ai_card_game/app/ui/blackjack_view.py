@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QSizePolicy, QFrame, QSpacerItem
 )
 from PySide6.QtSvgWidgets import QSvgWidget
-from PySide6.QtGui import QPalette, QColor, QFont
+from PySide6.QtGui import QPalette, QColor, QFont, QPainter, QBrush, QRadialGradient
 from PySide6.QtCore import QThread, Signal, QObject, Qt
 
 from ..core.blackjack.controller import BlackjackController
@@ -173,9 +173,11 @@ class BlackjackView(QWidget):
         self.ai_label = QLabel("DEALER", self)
         self.ai_label.setStyleSheet(LABEL_STYLE)
         self.ai_label.setAlignment(Qt.AlignCenter)
+        self.ai_label.setAttribute(Qt.WA_TranslucentBackground)
 
         # Card container for dealer - using a frame for better control
         self.ai_cards_container = QWidget(self)
+        self.ai_cards_container.setAttribute(Qt.WA_TranslucentBackground)
         self.ai_cards_row = QHBoxLayout(self.ai_cards_container)
         self.ai_cards_row.setContentsMargins(0, 0, 0, 0)
         self.ai_cards_row.setSpacing(-30)  # Negative spacing for overlap
@@ -198,6 +200,7 @@ class BlackjackView(QWidget):
 
         # Card container for player
         self.player_cards_container = QWidget(self)
+        self.player_cards_container.setAttribute(Qt.WA_TranslucentBackground)
         self.player_cards_row = QHBoxLayout(self.player_cards_container)
         self.player_cards_row.setContentsMargins(0, 0, 0, 0)
         self.player_cards_row.setSpacing(-30)  # Negative spacing for overlap
@@ -205,6 +208,7 @@ class BlackjackView(QWidget):
 
         self.player_label = QLabel(self._player_name.upper(), self)
         self.player_label.setAlignment(Qt.AlignCenter)
+        self.player_label.setAttribute(Qt.WA_TranslucentBackground)
         self._update_player_label()
 
         player_section.addWidget(self.player_cards_container)
@@ -450,22 +454,33 @@ class BlackjackView(QWidget):
 
     def _update_table_style(self) -> None:
         """Update the table background with current color."""
-        # Create lighter and darker shades for gradient
-        from PySide6.QtGui import QColor
+        # Just trigger a repaint - paintEvent will handle the gradient
+        self.update()
+
+    def paintEvent(self, event) -> None:
+        """Paint the table background with a radial gradient."""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        # Create gradient based on current table color
         base = QColor(self._table_color)
-        h, s, l, a = base.getHslF()
+        r, g, b = base.red(), base.green(), base.blue()
         
-        # Create gradient colors
-        light = QColor.fromHslF(h, s, min(l + 0.1, 1.0), a).name()
-        dark = QColor.fromHslF(h, s, max(l - 0.1, 0.0), a).name()
-        darker = QColor.fromHslF(h, s, max(l - 0.2, 0.0), a).name()
+        light = QColor(min(r + 40, 255), min(g + 40, 255), min(b + 40, 255))
+        dark = QColor(max(r - 30, 0), max(g - 30, 0), max(b - 30, 0))
         
-        self.setStyleSheet(f"""
-            BlackjackView {{
-                background: qradialgradient(cx:0.5, cy:0.5, radius:1,
-                    stop:0 {light}, stop:0.7 {dark}, stop:1 {darker});
-            }}
-        """)
+        # Create radial gradient centered in widget
+        center_x = self.width() / 2
+        center_y = self.height() / 2
+        radius = max(self.width(), self.height())
+        
+        gradient = QRadialGradient(center_x, center_y, radius)
+        gradient.setColorAt(0, light)
+        gradient.setColorAt(0.5, base)
+        gradient.setColorAt(1, dark)
+        
+        painter.fillRect(self.rect(), QBrush(gradient))
+        painter.end()
 
     # --- Player name and color settings ---
 
