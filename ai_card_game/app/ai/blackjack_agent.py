@@ -58,14 +58,9 @@ class BlackjackAgent:
             },
         ]
 
-        try:
-            resp = self.client.chat(messages)
-            raw = resp.content.strip()
-            decision = self._parse_decision(raw)
-        except Exception:
-            # Fallback: simple rule-based decision
-            decision = self._fallback_decision(ai_total)
-
+        resp = self.client.chat(messages)
+        raw = resp.content.strip()
+        decision = self._parse_decision(raw)
         return decision
 
     def _parse_decision(self, raw: str) -> AIDecision:
@@ -83,12 +78,6 @@ class BlackjackAgent:
             action = "stand"
         comment = str(data.get("comment", "")).strip() or f"I choose to {action}."
         return AIDecision(action=action, comment=comment)
-
-    def _fallback_decision(self, ai_total: int) -> AIDecision:
-        # Aggressive fallback with trash talk
-        if ai_total < 17:
-            return AIDecision(action="hit", comment="Watch and learn, rookie! I'm going for it! 🎰")
-        return AIDecision(action="stand", comment="That's all I need to crush you! 😎")
 
     def chat_response(self, state: BlackjackState, player_message: str) -> str:
         """Respond to player chat about the current game. Stay in character."""
@@ -125,8 +114,5 @@ class BlackjackAgent:
             },
         ]
 
-        try:
-            resp = self.client.chat(messages)
-            return resp.content.strip()
-        except Exception:
-            return "Ha! Can't even chat properly? Focus on the game, loser! 😏"
+        resp = self.client.chat(messages)
+        return resp.content.strip()

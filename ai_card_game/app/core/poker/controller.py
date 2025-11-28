@@ -126,68 +126,68 @@ class PokerController:
         
         return "Invalid action"
     
-    def ai_action(self) -> tuple[str, str]:
+    def get_ai_call_amount(self) -> int:
+        """Get the amount AI needs to call."""
+        return self.state.current_bet - self.state.ai_bet
+
+    def ai_action(self, decision: dict) -> tuple[str, str]:
         """
-        AI takes an action based on simple strategy.
+        Execute AI action based on LLM decision.
+        decision: {"action": "fold|check|call|raise", "raise_amount": int, "comment": str}
         Returns: (action_name, message)
         """
         if self.state.finished or self.state.turn != "ai":
             return ("none", "")
         
-        # Simple AI strategy
+        action = decision.get("action", "call")
+        raise_amount = decision.get("raise_amount", 40)
         call_amount = self.state.current_bet - self.state.ai_bet
         
-        # If can check, usually check (sometimes raise)
-        if call_amount == 0:
-            import random
-            if random.random() < 0.3:  # 30% chance to bet
-                bet = self.state.big_blind * 2
-                bet = min(bet, self.state.ai_chips)
-                self.state.ai_chips -= bet
-                self.state.ai_bet += bet
-                self.state.pot += bet
-                self.state.current_bet = self.state.ai_bet
-                self.state.ai_acted = True
-                self.state.player_acted = False
-                self._next_turn()
-                return ("raise", f"AI raises to ${self.state.current_bet}")
-            else:
-                self.state.ai_acted = True
-                self._next_turn()
-                return ("check", "AI checks")
+        if action == "fold":
+            self.state.ai_folded = True
+            self._finish_hand("player")
+            return ("fold", "Ace folds")
         
-        # If need to call
-        if call_amount <= self.state.ai_chips:
-            import random
-            if random.random() < 0.2:  # 20% chance to fold
-                self.state.ai_folded = True
-                self._finish_hand("player")
-                return ("fold", "AI folds")
-            elif random.random() < 0.3:  # 30% chance to raise
-                raise_amount = call_amount + self.state.big_blind
-                raise_amount = min(raise_amount, self.state.ai_chips)
-                self.state.ai_chips -= raise_amount
-                self.state.ai_bet += raise_amount
-                self.state.pot += raise_amount
-                self.state.current_bet = self.state.ai_bet
-                self.state.ai_acted = True
-                self.state.player_acted = False
-                self._next_turn()
-                return ("raise", f"AI raises to ${self.state.current_bet}")
+        elif action == "check":
+            if call_amount > 0:
+                # Can't check, must call
+                action = "call"
             else:
-                # Call
-                call_amount = min(call_amount, self.state.ai_chips)
+                self.state.ai_acted = True
+                self._next_turn()
+                return ("check", "Ace checks")
+        
+        if action == "call":
+            call_amount = min(call_amount, self.state.ai_chips)
+            if call_amount > 0:
                 self.state.ai_chips -= call_amount
                 self.state.ai_bet += call_amount
                 self.state.pot += call_amount
+            self.state.ai_acted = True
+            self._next_turn()
+            return ("call", f"Ace calls ${call_amount}")
+        
+        elif action == "raise":
+            # Calculate total amount needed
+            total = call_amount + raise_amount
+            total = min(total, self.state.ai_chips)
+            
+            if total <= 0:
+                # Can't raise, just check/call
                 self.state.ai_acted = True
                 self._next_turn()
-                return ("call", f"AI calls ${call_amount}")
-        else:
-            # Can't afford, fold
-            self.state.ai_folded = True
-            self._finish_hand("player")
-            return ("fold", "AI folds")
+                return ("check", "Ace checks")
+            
+            self.state.ai_chips -= total
+            self.state.ai_bet += total
+            self.state.pot += total
+            self.state.current_bet = self.state.ai_bet
+            self.state.ai_acted = True
+            self.state.player_acted = False  # Player must respond
+            self._next_turn()
+            return ("raise", f"Ace raises to ${self.state.current_bet}")
+        
+        return ("none", "")
     
     def _next_turn(self) -> None:
         """Advance to next turn or phase."""

@@ -145,9 +145,10 @@ class WarView(QWidget):
 
     def set_chat_sink(self, sink: Callable[[str, str], None]) -> None:
         self._chat_sink = sink
-        # Send initial greeting directly (avoid thread issues on startup)
+        # Get LLM greeting
         if self._chat_sink:
-            self._chat_sink("AI", "Let's go! I'm gonna crush you! 💪")
+            greeting = self.agent.get_comment(self.controller.state, "game_start")
+            self._chat_sink("AI", greeting)
 
     def _log(self, message: str) -> None:
         if self._logger:

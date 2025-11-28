@@ -392,12 +392,9 @@ class BlackjackView(QWidget):
             self._refresh()
 
     def _on_ai_error(self, error_msg: str) -> None:
-        """Handle AI error by falling back to simple rules."""
-        self._log(f"AI error: {error_msg}. Using fallback.")
-        self._chat("AI", "I had trouble thinking... I'll just play safe.")
-        # Fallback: use the old rule-based play
-        self.controller.ai_play_out()
-        self._refresh()
+        """Handle AI error - show error to user."""
+        self._log(f"AI error: {error_msg}")
+        self._chat("AI", f"Error: {error_msg} - Make sure Ollama is running!")
 
     def on_new_game(self) -> None:
         self.controller.new_game()
@@ -428,7 +425,7 @@ class BlackjackView(QWidget):
 
     def _on_chat_error(self, error_msg: str) -> None:
         """Handle AI chat error."""
-        self._chat("AI", "Ha! Can't even chat properly? Focus on the game! 😏")
+        self._chat("AI", f"Error: {error_msg} - Make sure Ollama is running!")
 
     # --- Card back settings ---
 

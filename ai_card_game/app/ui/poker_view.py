@@ -133,7 +133,9 @@ class PokerView(QWidget):
     def set_chat_sink(self, sink: Callable[[str, str], None]) -> None:
         self._chat_sink = sink
         if self._chat_sink:
-            self._chat_sink("AI", "Welcome to Texas Hold'em! Let's play! 🃏")
+            # Get LLM greeting
+            greeting = self.agent.get_comment(self.controller.state, "game_start")
+            self._chat_sink("AI", greeting)
             # If AI acts first, trigger AI turn
             if self.controller.state.turn == "ai":
                 self._ai_turn()
@@ -399,19 +401,21 @@ class PokerView(QWidget):
             self._ai_turn()
 
     def _ai_turn(self) -> None:
-        """Handle AI turn."""
+        """Handle AI turn - LLM decides the action."""
         while self.controller.state.turn == "ai" and not self.controller.state.finished:
-            action, message = self.controller.ai_action()
+            # Get LLM decision
+            call_amount = self.controller.get_ai_call_amount()
+            decision = self.agent.decide_action(self.controller.state, call_amount)
+            
+            # Execute the decision
+            action, message = self.controller.ai_action(decision)
+            
             if message:
                 self._log(message)
-                if action == "fold":
-                    self._chat("AI", self.agent.get_comment(self.controller.state, "ai_fold"))
-                elif action == "raise":
-                    self._chat("AI", self.agent.get_comment(self.controller.state, "ai_raise"))
-                elif action == "call":
-                    self._chat("AI", self.agent.get_comment(self.controller.state, "ai_call"))
-                elif action == "check":
-                    self._chat("AI", self.agent.get_comment(self.controller.state, "check"))
+                # Use the comment from LLM decision
+                comment = decision.get("comment", "")
+                if comment:
+                    self._chat("AI", comment)
             
             self._refresh()
             

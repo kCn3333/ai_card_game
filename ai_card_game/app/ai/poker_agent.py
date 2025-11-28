@@ -49,43 +49,82 @@ class PokerAgent:
             },
         ]
 
-        try:
-            resp = self.client.chat(messages)
-            return resp.content.strip()
-        except Exception:
-            return self._fallback_comment(event, state)
+        resp = self.client.chat(messages)
+        return resp.content.strip()
 
-    def _fallback_comment(self, event: str, state: PokerState) -> str:
-        """Fallback comments when AI is unavailable."""
-        if event == "game_start":
-            return "New hand! Let's see what you've got! 🃏"
-        elif event == "player_fold":
-            return "Ha! Couldn't handle the heat? Smart move, coward! 😏"
-        elif event == "ai_fold":
-            return "I'll let you have this one... for now! 😤"
-        elif event == "player_raise":
-            return "Ooh, feeling brave? Let's dance! 💰"
-        elif event == "ai_raise":
-            return "Think you can handle this? I'm raising! 🔥"
-        elif event == "player_call":
-            return "Just calling? Playing it safe, I see... 🤔"
-        elif event == "ai_call":
-            return "I'll see that bet. Show me what you've got! 👀"
-        elif event == "flop":
-            return "The flop is out! Things are getting interesting! 🎰"
-        elif event == "turn":
-            return "Turn card! The pressure is on! 😈"
-        elif event == "river":
-            return "River card! This is it! 🌊"
-        elif event == "showdown":
-            return "Showdown time! Let's see those cards! 🃏"
-        elif event == "win":
-            return "BOOM! I win! Better luck next time, loser! 🏆"
-        elif event == "lose":
-            return "Lucky hand... won't happen again! 😒"
-        elif event == "check":
-            return "Checking? Scared of your own cards? 😂"
-        return "Let's play! 🎴"
+    def decide_action(self, state: PokerState, call_amount: int) -> dict:
+        """
+        LLM decides what action to take: fold, check, call, or raise.
+        Returns: {"action": "fold|check|call|raise", "raise_amount": int, "comment": str}
+        """
+        # Evaluate AI's hand
+        ai_hand_name = "unknown"
+        if state.community_cards:
+            _, _, ai_hand_name = evaluate_hand(state.ai_hand, state.community_cards)
+
+        system_prompt = (
+            "You are an expert Poker player AI named 'Ace'. You must decide your action. "
+            "Analyze your hand strength, the pot odds, and make a strategic decision. "
+            "You can bluff sometimes but play smart. Be aggressive when you have good cards. "
+            'Respond ONLY as JSON: {"action": "fold" or "check" or "call" or "raise", '
+            '"raise_amount": number (only if raising, minimum 20), '
+            '"comment": "your trash talk"}. No extra text.'
+        )
+
+        context = {
+            "your_hole_cards": self._format_cards(state.ai_hand),
+            "your_hand_strength": ai_hand_name,
+            "community_cards": self._format_cards(state.community_cards) if state.community_cards else "none yet",
+            "phase": state.phase,
+            "pot": state.pot,
+            "your_chips": state.ai_chips,
+            "player_chips": state.player_chips,
+            "amount_to_call": call_amount,
+            "can_check": call_amount == 0,
+        }
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": (
+                    f"Game state: {json.dumps(context)}. "
+                    "Decide your action and trash talk!"
+                ),
+            },
+        ]
+
+        resp = self.client.chat(messages)
+        raw = resp.content.strip()
+        return self._parse_action(raw, call_amount, state)
+
+    def _parse_action(self, raw: str, call_amount: int, state: PokerState) -> dict:
+        """Parse LLM response into action dict."""
+        try:
+            start = raw.index("{")
+            end = raw.rindex("}") + 1
+            data = json.loads(raw[start:end])
+        except Exception:
+            # If parsing fails, make a simple decision based on call amount
+            if call_amount == 0:
+                return {"action": "check", "raise_amount": 0, "comment": "Let's see what happens..."}
+            return {"action": "call", "raise_amount": 0, "comment": "I'll see that bet."}
+
+        action = str(data.get("action", "call")).lower()
+        if action not in {"fold", "check", "call", "raise"}:
+            action = "call" if call_amount > 0 else "check"
+        
+        # Validate action
+        if action == "check" and call_amount > 0:
+            action = "call"  # Can't check if there's a bet
+        
+        raise_amount = int(data.get("raise_amount", 40))
+        if raise_amount < 20:
+            raise_amount = 20
+        
+        comment = str(data.get("comment", "Let's play!"))
+        
+        return {"action": action, "raise_amount": raise_amount, "comment": comment}
 
     def chat_response(self, state: PokerState, player_message: str) -> str:
         """Respond to player chat about the current game using LLM."""
@@ -125,8 +164,5 @@ class PokerAgent:
             },
         ]
 
-        try:
-            resp = self.client.chat(messages)
-            return resp.content.strip()
-        except Exception:
-            return "Less talking, more betting! Show me the money! 💰"
+        resp = self.client.chat(messages)
+        return resp.content.strip()

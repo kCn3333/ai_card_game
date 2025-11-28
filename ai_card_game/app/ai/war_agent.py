@@ -54,28 +54,8 @@ class WarAgent:
             },
         ]
 
-        try:
-            resp = self.client.chat(messages)
-            return resp.content.strip()
-        except Exception:
-            return self._fallback_comment(event, state)
-
-    def _fallback_comment(self, event: str, state: WarState) -> str:
-        """Fallback comments when AI is unavailable."""
-        if event == "game_start":
-            return "Let's go! I'm gonna crush you! 💪"
-        elif event == "player_wins":
-            return "Lucky shot... won't happen again! 😤"
-        elif event == "ai_wins":
-            return "Ha! Too easy! Get rekt! 😎"
-        elif event == "war":
-            return "WAR! This is where I destroy you! ⚔️"
-        elif event == "game_over":
-            if state.winner == "ai":
-                return "VICTORY! I told you I'd win! 🏆"
-            else:
-                return "Whatever... I let you win! 😒"
-        return "Bring it on! 🎴"
+        resp = self.client.chat(messages)
+        return resp.content.strip()
 
     def chat_response(self, state: WarState, player_message: str) -> str:
         """Respond to player chat about the current game."""
@@ -105,8 +85,5 @@ class WarAgent:
             },
         ]
 
-        try:
-            resp = self.client.chat(messages)
-            return resp.content.strip()
-        except Exception:
-            return "Less talking, more losing! 😏"
+        resp = self.client.chat(messages)
+        return resp.content.strip()
