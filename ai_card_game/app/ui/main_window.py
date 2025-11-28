@@ -21,6 +21,7 @@ from PySide6.QtGui import QAction, QIcon
 from .blackjack_view import BlackjackView
 from .settings_dialog import SettingsDialog
 from .statistics_dialog import StatisticsDialog
+from .game_settings_dialog import GameSettingsDialog
 
 ICONS_DIR = Path(__file__).resolve().parent.parent / "assets" / "icons"
 
@@ -139,6 +140,10 @@ class MainWindow(QMainWindow):
         ai_settings_action.triggered.connect(self._open_settings)
         settings_menu.addAction(ai_settings_action)
 
+        game_settings_action = QAction("Game Settings...", self)
+        game_settings_action.triggered.connect(self._open_game_settings)
+        settings_menu.addAction(game_settings_action)
+
     def _on_new_game(self) -> None:
         self.blackjack_view.on_new_game()
 
@@ -148,4 +153,10 @@ class MainWindow(QMainWindow):
 
     def _open_statistics(self) -> None:
         dialog = StatisticsDialog(self)
+        dialog.exec()
+
+    def _open_game_settings(self) -> None:
+        current_back = self.blackjack_view.get_card_back()
+        dialog = GameSettingsDialog(current_back, self)
+        dialog.card_back_changed.connect(self.blackjack_view.set_card_back)
         dialog.exec()

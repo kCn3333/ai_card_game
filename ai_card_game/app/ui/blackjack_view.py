@@ -132,6 +132,7 @@ class BlackjackView(QWidget):
         self._ai_worker: Optional[AIWorker] = None
         self._chat_thread: Optional[QThread] = None
         self._chat_worker: Optional[ChatWorker] = None
+        self._card_back: str = "back.svg"
 
         self._init_ui()
         self._refresh()
@@ -254,7 +255,7 @@ class BlackjackView(QWidget):
             else:
                 # Use a fixed-size widget for the back so it matches card size
                 back_widget = CardWidget(parent=self)
-                back_path = BACKS_DIR / "back.svg"
+                back_path = BACKS_DIR / self._card_back
                 back_widget.load(str(back_path))
                 self.ai_cards_row.addWidget(back_widget)
 
@@ -426,3 +427,14 @@ class BlackjackView(QWidget):
     def _on_chat_error(self, error_msg: str) -> None:
         """Handle AI chat error."""
         self._chat("AI", "Ha! Can't even chat properly? Focus on the game! 😏")
+
+    # --- Card back settings ---
+
+    def get_card_back(self) -> str:
+        """Return current card back filename."""
+        return self._card_back
+
+    def set_card_back(self, filename: str) -> None:
+        """Set the card back design and refresh display."""
+        self._card_back = filename
+        self._refresh()
