@@ -1,4 +1,4 @@
-# 🎰 AI Card Game
+# ♤ ♡ ♧ ♢ AI Card Game
 
 A desktop card game suite where you play against a local AI opponent powered by Ollama/LLM models. The AI makes all decisions and trash talks you in real-time!
 
@@ -16,8 +16,7 @@ A desktop card game suite where you play against a local AI opponent powered by 
 ## ✨ Features
 
 - 🤖 **Pure LLM Gameplay** - AI makes ALL decisions (no rule-based fallbacks!)
-- 💬 **Trash Talk** - Aggressive AI that taunts and comments on every move
-- 🎰 **Casino-style UI** - Beautiful green felt table with overlapping cards
+- 💬 **Trash Talk** - AI that taunts and comments on every move
 - 💬 **Live Chat** - Talk to the AI during gameplay
 - 📊 **Game Console** - Timestamped logs of all events
 - 📈 **Statistics** - Track your wins/losses in SQLite database
@@ -25,8 +24,7 @@ A desktop card game suite where you play against a local AI opponent powered by 
 - 🎨 **SVG Cards** - Crisp vector graphics at any size
 
 ## 📸 Screenshots
-
-*Coming soon*
+![Poker](screenshots/poker.png)
 
 ## 📋 Requirements
 
@@ -122,7 +120,6 @@ ai_card_game/
 
 The AI opponent is powered by a local LLM (via Ollama). Every decision the AI makes - whether to hit/stand in Blackjack, or fold/raise in Poker - is made by the LLM analyzing the game state. The AI also generates all trash talk and chat responses in real-time.
 
-**No hardcoded responses or rule-based fallbacks** - it's pure LLM gameplay!
 
 ## 📄 License
 
