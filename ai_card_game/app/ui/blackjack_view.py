@@ -13,6 +13,7 @@ from ..core.blackjack.controller import BlackjackController
 from ..core.blackjack.rules import hand_value, is_bust
 from ..core.cards import Card
 from ..ai.blackjack_agent import BlackjackAgent, AIDecision
+from ..db.database import save_game_result
 
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
@@ -255,12 +256,17 @@ class BlackjackView(QWidget):
             self.stand_btn.setEnabled(False)
             if state.winner == "player":
                 result_text = "🎉 YOU WIN!"
+                result_db = "win"
             elif state.winner == "ai":
                 result_text = "💔 DEALER WINS"
+                result_db = "loss"
             else:
                 result_text = "🤝 PUSH"
+                result_db = "push"
             self.status_label.setText(f"{result_text}   •   You: {p_val}  |  Dealer: {a_val}")
             self._log(f"Game finished. Winner: {state.winner} (Player={p_val}, AI={a_val})")
+            # Save to database
+            save_game_result("blackjack", result_db, p_val, a_val)
         else:
             visible_ai = "?" if not state.finished else str(a_val)
             self.status_label.setText(f"You: {p_val}   •   Dealer: {visible_ai}")
