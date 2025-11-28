@@ -1,3 +1,6 @@
+from datetime import datetime
+from pathlib import Path
+
 from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -7,26 +10,41 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QSplitter,
     QLabel,
+    QMenuBar,
+    QMenu,
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction, QIcon
 
 from .blackjack_view import BlackjackView
+from .settings_dialog import SettingsDialog
+
+ICONS_DIR = Path(__file__).resolve().parent.parent / "assets" / "icons"
 
 class MainWindow(QMainWindow):
     """Main window: game area + right panel (console + chat)."""
 
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("AI Card Game")
+        self.setWindowTitle("♠ AI Card Game")
         self.resize(1200, 800)
+
+        # Set app icon
+        icon_path = ICONS_DIR / "spade.svg"
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
 
         self._init_ui()
 
     def _init_ui(self) -> None:
+        # Menu bar
+        self._create_menu()
+
         # Central widget: Blackjack game view
         self.blackjack_view = BlackjackView(self)
-        # Connect game logger to console
+        # Connect game logger to console and chat sink
         self.blackjack_view.set_logger(self.log_message)
+        self.blackjack_view.set_chat_sink(self.append_chat)
         self.setCentralWidget(self.blackjack_view)
 
         # Right panel: console (top) + chat (bottom)
@@ -58,4 +76,31 @@ class MainWindow(QMainWindow):
         self.log_message("Blackjack view ready. Click 'New Game' or play current hand.")
 
     def log_message(self, message: str) -> None:
-        self.console.append(message)
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.console.append(f"<span style='color:#888'>[{timestamp}]</span> {message}")
+
+    def append_chat(self, sender: str, message: str) -> None:
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.chat.append(f"<span style='color:#888'>[{timestamp}]</span> <b>{sender}:</b> {message}")
+
+    def _create_menu(self) -> None:
+        menu_bar = self.menuBar()
+
+        # Game menu
+        game_menu = menu_bar.addMenu("Game")
+        new_game_action = QAction("New Game", self)
+        new_game_action.triggered.connect(self._on_new_game)
+        game_menu.addAction(new_game_action)
+
+        # Settings menu
+        settings_menu = menu_bar.addMenu("Settings")
+        ai_settings_action = QAction("AI Settings...", self)
+        ai_settings_action.triggered.connect(self._open_settings)
+        settings_menu.addAction(ai_settings_action)
+
+    def _on_new_game(self) -> None:
+        self.blackjack_view.on_new_game()
+
+    def _open_settings(self) -> None:
+        dialog = SettingsDialog(self)
+        dialog.exec()

@@ -31,17 +31,20 @@ class BlackjackAgent:
         ai_total = hand_value(state.ai_hand)
 
         system_prompt = (
-            "You are playing Blackjack as the AI opponent. "
-            "You must choose either 'hit' or 'stand'. "
-            "Always respond ONLY as compact JSON: {\\"action\\": \\\"hit|stand\\\", "
-            "\\"comment\\": \\\"short explanation\\\"}. Do not add extra text."
+            "You are an AGGRESSIVE and COCKY Blackjack dealer AI. You love to trash talk and taunt the player. "
+            "You're confident, competitive, and love winning. Comment on the game with attitude! "
+            "Mock the player's hand if it's weak, brag about your cards, or express frustration if things go badly. "
+            "Be entertaining but not too mean - like a fun rival at the casino. "
+            "You must choose either 'hit' or 'stand' based on standard Blackjack strategy. "
+            'Always respond ONLY as compact JSON: {"action": "hit" or "stand", '
+            '"comment": "your trash talk or game comment"}. No extra text outside JSON.'
         )
 
         user_prompt = {
+            "your_total": ai_total,
+            "your_cards": self._format_hand(state.ai_hand.cards),
             "player_total": player_total,
             "player_cards": self._format_hand(state.player_hand.cards),
-            "ai_total": ai_total,
-            "ai_cards": self._format_hand(state.ai_hand.cards),
         }
 
         messages = [
@@ -49,9 +52,8 @@ class BlackjackAgent:
             {
                 "role": "user",
                 "content": (
-                    "Game state: " + json.dumps(user_prompt) +
-                    ". Legal actions: ['hit', 'stand']. "
-                    "Choose the best action and explain briefly."
+                    "Current game: " + json.dumps(user_prompt) +
+                    ". Your turn - choose 'hit' or 'stand' and trash talk the player!"
                 ),
             },
         ]
@@ -62,7 +64,7 @@ class BlackjackAgent:
             decision = self._parse_decision(raw)
         except Exception:
             # Fallback: simple rule-based decision
-            decision = self._fallback_decision(player_total)
+            decision = self._fallback_decision(ai_total)
 
         return decision
 
@@ -82,8 +84,8 @@ class BlackjackAgent:
         comment = str(data.get("comment", "")).strip() or f"I choose to {action}."
         return AIDecision(action=action, comment=comment)
 
-    def _fallback_decision(self, player_total: int) -> AIDecision:
-        # Very simple heuristic fallback: hit below 15, else stand
-        if player_total < 15:
-            return AIDecision(action="hit", comment="I'll take another card.")
-        return AIDecision(action="stand", comment="I'll stand here.")
+    def _fallback_decision(self, ai_total: int) -> AIDecision:
+        # Aggressive fallback with trash talk
+        if ai_total < 17:
+            return AIDecision(action="hit", comment="Watch and learn, rookie! I'm going for it! 🎰")
+        return AIDecision(action="stand", comment="That's all I need to crush you! 😎")

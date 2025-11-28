@@ -1,25 +1,77 @@
 from pathlib import Path
 from typing import Callable, Optional
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QSizePolicy
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
+    QSizePolicy, QFrame, QSpacerItem
+)
 from PySide6.QtSvgWidgets import QSvgWidget
-from PySide6.QtGui import QPalette, QColor
+from PySide6.QtGui import QPalette, QColor, QFont
+from PySide6.QtCore import QThread, Signal, QObject, Qt
 
 from ..core.blackjack.controller import BlackjackController
-from ..core.blackjack.rules import hand_value
+from ..core.blackjack.rules import hand_value, is_bust
 from ..core.cards import Card
+from ..ai.blackjack_agent import BlackjackAgent, AIDecision
 
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 CARDS_DIR = ASSETS_DIR / "cards"
 BACKS_DIR = ASSETS_DIR / "backs"
 
+# Casino-style button stylesheet (green)
+BUTTON_STYLE = """
+    QPushButton {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #2e8b57, stop:0.5 #228b22, stop:1 #1a6b1a);
+        color: #ffffff;
+        border: 2px solid #145214;
+        border-radius: 8px;
+        padding: 12px 28px;
+        font-size: 16px;
+        font-weight: bold;
+        min-width: 100px;
+    }
+    QPushButton:hover {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #3cb371, stop:0.5 #2e8b57, stop:1 #228b22);
+    }
+    QPushButton:pressed {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #1a6b1a, stop:0.5 #145214, stop:1 #0d3d0d);
+    }
+    QPushButton:disabled {
+        background: #4a4a4a;
+        color: #888888;
+        border-color: #333333;
+    }
+"""
+
+LABEL_STYLE = """
+    QLabel {
+        color: #f0e68c;
+        font-size: 18px;
+        font-weight: bold;
+        padding: 8px;
+    }
+"""
+
+STATUS_STYLE = """
+    QLabel {
+        color: white;
+        font-size: 22px;
+        font-weight: bold;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+    }
+"""
+
 
 class CardWidget(QSvgWidget):
     def __init__(self, card: Card | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        # Default size; will be overridden by BlackjackView on resize
-        self.setFixedSize(100, 150)
+        self.setFixedSize(120, 168)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         if card is not None:
             self.set_card(card)
@@ -29,13 +81,35 @@ class CardWidget(QSvgWidget):
         self.load(str(svg_path))
 
 
+class AIWorker(QObject):
+    """Worker that runs AI decision in a background thread."""
+    finished = Signal(object)  # emits AIDecision
+    error = Signal(str)
+
+    def __init__(self, agent: BlackjackAgent, state) -> None:
+        super().__init__()
+        self.agent = agent
+        self.state = state
+
+    def run(self) -> None:
+        try:
+            decision = self.agent.decide(self.state)
+            self.finished.emit(decision)
+        except Exception as e:
+            self.error.emit(str(e))
+
+
 class BlackjackView(QWidget):
     """Very simple visual for player/AI hands and basic controls."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.controller = BlackjackController()
+        self.agent = BlackjackAgent()
         self._logger: Optional[Callable[[str], None]] = None
+        self._chat_sink: Optional[Callable[[str, str], None]] = None
+        self._ai_thread: Optional[QThread] = None
+        self._ai_worker: Optional[AIWorker] = None
 
         self._init_ui()
         self._refresh()
@@ -46,40 +120,89 @@ class BlackjackView(QWidget):
         """Set a function used to log messages (e.g. to main window console)."""
         self._logger = logger
 
+    def set_chat_sink(self, sink: Callable[[str, str], None]) -> None:
+        """Set a function to send chat messages (sender, text)."""
+        self._chat_sink = sink
+
     def _log(self, message: str) -> None:
         if self._logger is not None:
             self._logger(message)
 
+    def _chat(self, sender: str, message: str) -> None:
+        if self._chat_sink is not None:
+            self._chat_sink(sender, message)
+
     def _init_ui(self) -> None:
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
 
-        # Simple table background (dark green)
-        pal = self.palette()
-        pal.setColor(QPalette.Window, QColor(0, 80, 0))
-        self.setAutoFillBackground(True)
-        self.setPalette(pal)
+        # Casino felt table background
+        self.setStyleSheet("""
+            BlackjackView {
+                background: qradialgradient(cx:0.5, cy:0.5, radius:1,
+                    stop:0 #1a5c1a, stop:0.7 #0d3d0d, stop:1 #082808);
+            }
+        """)
 
-        # Dealer (AI) area
-        self.ai_label = QLabel("AI Hand", self)
-        self.ai_cards_row = QHBoxLayout()
-        self.ai_cards_row.setSpacing(12)
+        # === DEALER AREA (top) ===
+        dealer_section = QVBoxLayout()
+        dealer_section.setAlignment(Qt.AlignCenter)
 
-        layout.addWidget(self.ai_label)
-        layout.addLayout(self.ai_cards_row)
+        self.ai_label = QLabel("DEALER", self)
+        self.ai_label.setStyleSheet(LABEL_STYLE)
+        self.ai_label.setAlignment(Qt.AlignCenter)
 
-        # Player area
-        self.player_label = QLabel("Player Hand", self)
-        self.player_cards_row = QHBoxLayout()
-        self.player_cards_row.setSpacing(12)
+        # Card container for dealer - using a frame for better control
+        self.ai_cards_container = QWidget(self)
+        self.ai_cards_row = QHBoxLayout(self.ai_cards_container)
+        self.ai_cards_row.setContentsMargins(0, 0, 0, 0)
+        self.ai_cards_row.setSpacing(-30)  # Negative spacing for overlap
+        self.ai_cards_row.setAlignment(Qt.AlignCenter)
 
-        layout.addWidget(self.player_label)
-        layout.addLayout(self.player_cards_row)
+        dealer_section.addWidget(self.ai_label)
+        dealer_section.addWidget(self.ai_cards_container)
 
-        # Action buttons
+        layout.addLayout(dealer_section, stretch=2)
+
+        # === STATUS AREA (middle) ===
+        self.status_label = QLabel("", self)
+        self.status_label.setStyleSheet(STATUS_STYLE)
+        self.status_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.status_label, alignment=Qt.AlignCenter)
+
+        # === PLAYER AREA (bottom) ===
+        player_section = QVBoxLayout()
+        player_section.setAlignment(Qt.AlignCenter)
+
+        # Card container for player
+        self.player_cards_container = QWidget(self)
+        self.player_cards_row = QHBoxLayout(self.player_cards_container)
+        self.player_cards_row.setContentsMargins(0, 0, 0, 0)
+        self.player_cards_row.setSpacing(-30)  # Negative spacing for overlap
+        self.player_cards_row.setAlignment(Qt.AlignCenter)
+
+        self.player_label = QLabel("YOUR HAND", self)
+        self.player_label.setStyleSheet(LABEL_STYLE)
+        self.player_label.setAlignment(Qt.AlignCenter)
+
+        player_section.addWidget(self.player_cards_container)
+        player_section.addWidget(self.player_label)
+
+        layout.addLayout(player_section, stretch=2)
+
+        # === ACTION BUTTONS (bottom) ===
         btn_row = QHBoxLayout()
-        self.hit_btn = QPushButton("Hit", self)
-        self.stand_btn = QPushButton("Stand", self)
-        self.new_game_btn = QPushButton("New Game", self)
+        btn_row.setSpacing(20)
+        btn_row.setAlignment(Qt.AlignCenter)
+
+        self.hit_btn = QPushButton("HIT", self)
+        self.stand_btn = QPushButton("STAND", self)
+        self.new_game_btn = QPushButton("NEW GAME", self)
+
+        for btn in [self.hit_btn, self.stand_btn, self.new_game_btn]:
+            btn.setStyleSheet(BUTTON_STYLE)
+            btn.setCursor(Qt.PointingHandCursor)
 
         self.hit_btn.clicked.connect(self.on_hit)
         self.stand_btn.clicked.connect(self.on_stand)
@@ -88,11 +211,8 @@ class BlackjackView(QWidget):
         btn_row.addWidget(self.hit_btn)
         btn_row.addWidget(self.stand_btn)
         btn_row.addWidget(self.new_game_btn)
-        layout.addLayout(btn_row)
 
-        # Status label
-        self.status_label = QLabel("", self)
-        layout.addWidget(self.status_label)
+        layout.addLayout(btn_row)
 
     # --- UI logic ---
 
@@ -127,16 +247,23 @@ class BlackjackView(QWidget):
         # Update card sizes based on current widget size
         self._update_card_sizes()
 
-        # Status
+        # Status with casino-style display
         p_val = hand_value(state.player_hand)
         a_val = hand_value(state.ai_hand)
         if state.finished:
             self.hit_btn.setEnabled(False)
             self.stand_btn.setEnabled(False)
-            self.status_label.setText(f"Finished. Winner: {state.winner} (P={p_val}, AI={a_val})")
+            if state.winner == "player":
+                result_text = "🎉 YOU WIN!"
+            elif state.winner == "ai":
+                result_text = "💔 DEALER WINS"
+            else:
+                result_text = "🤝 PUSH"
+            self.status_label.setText(f"{result_text}   •   You: {p_val}  |  Dealer: {a_val}")
             self._log(f"Game finished. Winner: {state.winner} (Player={p_val}, AI={a_val})")
         else:
-            self.status_label.setText(f"Player total: {p_val} | AI total: {a_val}")
+            visible_ai = "?" if not state.finished else str(a_val)
+            self.status_label.setText(f"You: {p_val}   •   Dealer: {visible_ai}")
 
     def _clear_layout(self, layout) -> None:
         while layout.count():
@@ -147,20 +274,26 @@ class BlackjackView(QWidget):
 
     def _update_card_sizes(self) -> None:
         """Adjust card sizes responsively based on current widget size."""
-        # Rough heuristic: fit up to 5 cards per row with margins (bigger cards)
-        max_cards_per_row = 5
-        avail_width = max(self.width() - 120, 300)  # leave space for margins
-        card_width = avail_width / max_cards_per_row
-        # Limit card width to a sensible range
-        card_width = max(90, min(card_width, 200))
-        card_height = int(card_width * 1.5)
+        # Calculate card size based on window height for better proportions
+        avail_height = max(self.height() - 200, 300)
+        card_height = min(int(avail_height * 0.35), 200)
+        card_width = int(card_height / 1.4)  # Standard card ratio
+
+        # Ensure minimum size
+        card_width = max(card_width, 80)
+        card_height = max(card_height, 112)
+
+        # Update overlap based on card width
+        overlap = int(card_width * 0.3)
+        self.ai_cards_row.setSpacing(-overlap)
+        self.player_cards_row.setSpacing(-overlap)
 
         def resize_cards_in_layout(layout) -> None:
             for i in range(layout.count()):
                 item = layout.itemAt(i)
                 widget = item.widget()
                 if isinstance(widget, CardWidget):
-                    widget.setFixedSize(int(card_width), card_height)
+                    widget.setFixedSize(card_width, card_height)
 
         resize_cards_in_layout(self.ai_cards_row)
         resize_cards_in_layout(self.player_cards_row)
@@ -178,8 +311,61 @@ class BlackjackView(QWidget):
 
     def on_stand(self) -> None:
         self.controller.player_stand()
-        self._log("Player stands. Dealer plays out.")
-        # Dealer/AI plays out according to rules
+        self._log("Player stands. AI's turn...")
+        # Disable buttons while AI thinks
+        self.hit_btn.setEnabled(False)
+        self.stand_btn.setEnabled(False)
+        # Start AI turn in background
+        self._start_ai_turn()
+
+    def _start_ai_turn(self) -> None:
+        """Kick off AI decision in a background thread."""
+        if self.controller.state.finished:
+            self._refresh()
+            return
+
+        self._log("AI is thinking...")
+        self._ai_thread = QThread()
+        self._ai_worker = AIWorker(self.agent, self.controller.state)
+        self._ai_worker.moveToThread(self._ai_thread)
+
+        self._ai_thread.started.connect(self._ai_worker.run)
+        self._ai_worker.finished.connect(self._on_ai_decision)
+        self._ai_worker.error.connect(self._on_ai_error)
+        self._ai_worker.finished.connect(self._ai_thread.quit)
+        self._ai_worker.error.connect(self._ai_thread.quit)
+
+        self._ai_thread.start()
+
+    def _on_ai_decision(self, decision: AIDecision) -> None:
+        """Handle AI decision result from worker thread."""
+        action = decision.action
+        comment = decision.comment
+
+        self._log(f"AI chooses to {action}.")
+        self._chat("AI", comment)
+
+        if action == "hit":
+            self.controller.state.ai_hand.cards.append(self.controller.state.deck.draw())
+            self._refresh()
+            # Check if AI busted
+            if is_bust(self.controller.state.ai_hand):
+                self.controller._finish_game(winner="player")
+                self._log("AI busts!")
+                self._refresh()
+            else:
+                # AI continues thinking
+                self._start_ai_turn()
+        else:
+            # AI stands -> resolve game
+            self.controller.ai_stand_and_resolve()
+            self._refresh()
+
+    def _on_ai_error(self, error_msg: str) -> None:
+        """Handle AI error by falling back to simple rules."""
+        self._log(f"AI error: {error_msg}. Using fallback.")
+        self._chat("AI", "I had trouble thinking... I'll just play safe.")
+        # Fallback: use the old rule-based play
         self.controller.ai_play_out()
         self._refresh()
 

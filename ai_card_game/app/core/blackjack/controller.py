@@ -93,6 +93,19 @@ class BlackjackController:
         else:
             self._finish_game(winner="push")
 
+    def ai_stand_and_resolve(self) -> None:
+        """AI stands and we resolve the game by comparing totals."""
+        if self.state.finished:
+            return
+        p = hand_value(self.state.player_hand)
+        a = hand_value(self.state.ai_hand)
+        if p > a:
+            self._finish_game(winner="player")
+        elif a > p:
+            self._finish_game(winner="ai")
+        else:
+            self._finish_game(winner="push")
+
     # --- Helpers ---
 
     def _finish_game(self, winner: str) -> None:
